@@ -1087,6 +1087,28 @@ struct Trick {
     return filtered_cards;
   }
 
+  std::vector<std::vector<int>> GroupEquivalent(Cards playable_cards) const {
+    std::vector<std::vector<int>> groups;
+    for (int suit = 0; suit < NUM_SUITS; ++suit) {
+      auto suit_cards = playable_cards.Suit(suit);
+      if (!suit_cards) continue;
+
+      std::vector<int> group;
+      int prev_card = -1;
+      for (int card : suit_cards) {
+        if (!group.empty() &&
+            RelativeRank(prev_card, suit) != RelativeRank(card, suit) + 1) {
+          groups.push_back(std::move(group));
+          group.clear();
+        }
+        group.push_back(card);
+        prev_card = card;
+      }
+      groups.push_back(std::move(group));
+    }
+    return groups;
+  }
+
   // A pattern hand contains relative cards and rank-irrelevant cards.
   std::pair<Hands, Cards> ComputePatternHands(Cards rank_winners) const {
     Cards relative_rank_winners, extended_rank_winners;
@@ -2302,6 +2324,27 @@ class PlaySequence {
     return MemoryEnhancedTestDriver(search, num_tricks, guess_ns_tricks);
   }
 
+  std::vector<ScoredPlay> SolvePlayableCards(int guess_ns_tricks) {
+    auto& play = min_max.play(played_cards.size());
+    std::vector<std::vector<int>> groups;
+    if (played_cards.size() >= last_trick) {
+      Hands hands = play.hands;
+      for (size_t p = last_trick; p < played_cards.size(); ++p)
+        hands[min_max.play(p).seat_to_play].Remove(played_cards[p]);
+      for (int card : hands[play.seat_to_play]) groups.push_back({card});
+    } else {
+      groups = play.trick->GroupEquivalent(play.GetPlayableCards());
+    }
+
+    std::vector<ScoredPlay> scored;
+    for (const auto& group : groups) {
+      if (group.empty()) continue;
+      const int ns_tricks = SolvePlay(group.front(), guess_ns_tricks);
+      for (int card : group) scored.push_back({card, ns_tricks});
+    }
+    return scored;
+  }
+
  private:
   MinMax min_max;
   const int num_tricks;
@@ -2325,4 +2368,15 @@ int SolvePlay(const Deal& deal, int trump, int lead_seat, const std::vector<int>
   if (guess_ns_tricks == -1) guess_ns_tricks = GuessTricks(hands, trump);
   return PlaySequence(hands, trump, lead_seat, earlier_cards)
       .SolvePlay(played_cards.back(), guess_ns_tricks);
+}
+
+std::vector<ScoredPlay> SolvePlayableCards(
+    const Deal& deal, int trump, int lead_seat,
+    const std::vector<int>& played_cards, int guess_ns_tricks) {
+  Hands hands = ToHands(deal);
+  assert(played_cards.size() < size_t(4 * hands.num_tricks()));
+  UseCaches(hands, trump);
+  if (guess_ns_tricks == -1) guess_ns_tricks = GuessTricks(hands, trump);
+  return PlaySequence(hands, trump, lead_seat, played_cards)
+      .SolvePlayableCards(guess_ns_tricks);
 }

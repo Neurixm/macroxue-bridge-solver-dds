@@ -134,6 +134,10 @@ with the following meanings.
 You can choose what card to play. For simplicity, only one of the equivalent
 cards like QJT in the same suit can be chosen. You can also undo the plays
 to explore all possibilities. Below is an example.
+
+The C++ API's `SolvePlayableCards` returns a score for every legally playable
+card. Cards in the same solver equivalence group reuse one search result, so
+requesting the full score list does not add search branches.
 ```
 ------ 3NT by NS: NS 0 EW 0 ------
                         N ♠ AK83

@@ -84,9 +84,20 @@ Position GetPosition(const Deal& deal, int trump, int lead_seat,
 // The N/S tricks at the end of the deal when both sides play their best after
 // `played_cards`, which has at least one card. The search starts at
 // `guess_ns_tricks`, or at a guess from the hands when it is -1. Searches by
-// Solve() and SolvePlay() share their caches while the deal and trump stay the
-// same.
+// Solve(), SolvePlay(), and SolvePlayableCards() share their caches while the
+// deal and trump stay the same.
 int SolvePlay(const Deal& deal, int trump, int lead_seat, const std::vector<int>& played_cards,
               int guess_ns_tricks = -1);
+
+// Scores every card the current seat may legally play. Cards in the same
+// equivalence class share one search result, so this does not search more
+// branches than selecting the best card. Scores are total N/S tricks.
+struct ScoredPlay {
+  int card;
+  int ns_tricks;
+};
+std::vector<ScoredPlay> SolvePlayableCards(
+    const Deal& deal, int trump, int lead_seat,
+    const std::vector<int>& played_cards, int guess_ns_tricks = -1);
 
 #endif  // SOLVER_H
